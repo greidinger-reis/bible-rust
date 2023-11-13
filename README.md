@@ -55,9 +55,9 @@ rust-bible-cli random [OPTIONS]
 
 ##### Options:
 
-- `--new-testament-only`, `-nt`: Get only verses from the New Testament.
+- `--new-testament-only`, `-n`: Get only verses from the New Testament.
 
-- `--old-testament-only`, `-ot`: Get only verses from the Old Testament.
+- `--old-testament-only`, `-o`: Get only verses from the Old Testament.
 
 ### Examples:
 
