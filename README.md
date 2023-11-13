@@ -5,7 +5,7 @@ A command-line interface (CLI) application written in Rust for reading Bible ver
 ## Installation
 
 ```bash
-git clone https://github.com/yourusername/rust-bible-cli.git
+git clone https://github.com/greidinger-reis/bible-rust
 cd rust-bible-cli
 cargo build --release
 ```
