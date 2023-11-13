@@ -66,23 +66,23 @@ pub struct Abbreviation {
 
 #[derive(Debug, Serialize)]
 pub struct BibleSingleVerseResult {
-    book: String,
-    chapter: usize,
-    verse: usize,
-    content: String,
+    pub book: String,
+    pub chapter: usize,
+    pub verse: usize,
+    pub content: String,
 }
 
 #[derive(Debug, Serialize)]
-struct VerseRange {
-    number: usize,
-    content: String,
+pub struct VerseRange {
+    pub number: usize,
+    pub content: String,
 }
 
 #[derive(Debug, Serialize)]
 pub struct BibleRangeVerseResult {
-    book: String,
-    chapter: usize,
-    verses: Vec<VerseRange>,
+    pub book: String,
+    pub chapter: usize,
+    pub verses: Vec<VerseRange>,
 }
 
 impl FromStr for VerseOpts {

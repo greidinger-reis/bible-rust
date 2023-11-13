@@ -40,10 +40,14 @@ fn main() {
     };
 
     if result_random.is_some() {
-        println!(
-            "{:?}",
-            serde_json::to_string(&result_random.unwrap()).unwrap()
-        );
+        let res = result_random.unwrap();
+        let book = res.book;
+        let chapter = res.chapter;
+        let verse = res.verse;
+        let content = res.content;
+
+        println!("{book} {chapter}:{verse}\n{content}");
+
         std::process::exit(0);
     }
 
@@ -56,10 +60,31 @@ fn main() {
     };
 
     if result_abbrev.is_some() {
-        println!(
-            "{:?}",
-            serde_json::to_string(&result_abbrev.unwrap()).unwrap()
-        );
+        match result_abbrev.unwrap() {
+            BibleVerseResult::Range(res) => {
+                let book = res.book;
+                let chapter = res.chapter;
+                let verses = res.verses;
+                let verse_start_n = verses.first().unwrap().number;
+                let verse_end_n = verses.last().unwrap().number;
+
+                println!("{book} {chapter}:{verse_start_n}-{verse_end_n}");
+
+                for verse in verses {
+                    let verse_content = verse.content;
+
+                    println!("{verse_content}")
+                }
+            }
+            BibleVerseResult::Single(res) => {
+                let book = res.book;
+                let chapter = res.chapter;
+                let verse = res.verse;
+                let content = res.content;
+
+                println!("{book} {chapter}:{verse}\n{content}");
+            }
+        }
         std::process::exit(0);
     }
 
@@ -74,6 +99,29 @@ fn main() {
     let result = bible
         .get(&book_name, chapter_number, verse_opts)
         .expect("Verse not found");
-    println!("{:?}", serde_json::to_string(&result).unwrap());
+
+    match result {
+        BibleVerseResult::Single(res) => {
+            let book = res.book;
+            let chapter = res.chapter;
+            let verse = res.verse;
+            let content = res.content;
+
+            println!("{book} {chapter}:{verse}\n{content}");
+        }
+        BibleVerseResult::Range(res) => {
+            let book = res.book;
+            let chapter = res.chapter;
+            let verses = res.verses;
+            println!("{book} {chapter}");
+
+            for verse in verses {
+                let verse_number = verse.number;
+                let verse_content = verse.content;
+
+                println!("{verse_number}: {verse_content}");
+            }
+        }
+    };
     std::process::exit(0);
 }
