@@ -25,7 +25,7 @@ You will need to download a XML file in this format
   </book>
 </bible>
 ```
-🇧🇷 I'm using one downloaded from this source 
+I'm using a PT-🇧🇷 version downloaded from this source 
 https://github.com/thiagobodruk/biblia/tree/master/xml
 
 Run the script
