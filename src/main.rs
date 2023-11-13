@@ -1,114 +1,79 @@
-#![allow(dead_code, unused_variables)]
+mod args;
+mod bible;
 
-use quick_xml::de::{from_str, DeError};
-use rand::seq::SliceRandom;
-use serde::{Deserialize, Serialize};
+use args::{RustBibleArgs, SubCommands};
+use bible::{Bible, BibleVerseResult, RandomVerseOpts, VerseOpts};
+use clap::Parser;
 
-const FILE_STR: &'static str = include_str!("../bible-por-nvi.xml");
-
-#[derive(Debug, Default, Deserialize )]
-#[serde(rename = "bible")]
-struct Bible {
-    #[serde(rename = "book")]
-    books: Vec<BibleBook>,
-}
-
-impl Bible {
-    fn from_xml() -> Result<Bible, DeError> {
-        let bible: Bible = from_str(FILE_STR)?;
-
-        Ok(bible)
-    }
-
-    fn random(&self) -> BibleVerseResponse {
-        let book = self.books.choose(&mut rand::thread_rng()).unwrap();
-        let chapter = book.chapters.choose(&mut rand::thread_rng()).unwrap();
-        let verse = chapter.verses.choose(&mut rand::thread_rng()).unwrap();
-
-        BibleVerseResponse {
-            book: book.name.clone(),
-            chapter: chapter.number,
-            verse: verse.number,
-            content: verse.content.clone(),
-        }
-    }
-
-    fn get(&self, book_name: &str, chapter: usize, verse: usize) -> Option<BibleVerseResponse> {
-        let book = self.books.iter().find(|b| b.name == book_name)?;
-        let chapter = book.chapters.iter().find(|c| c.number == chapter)?;
-        let verse = chapter.verses.iter().find(|v| v.number == verse)?;
-
-        Some(BibleVerseResponse {
-            book: book.name.clone(),
-            chapter: chapter.number,
-            verse: verse.number,
-            content: verse.content.clone(),
-        })
-    }
-
-    fn get_by_abbr(
-        &self,
-        book_abbr: &str,
-        chapter: usize,
-        verse: usize,
-    ) -> Option<BibleVerseResponse> {
-        let book = self.books.iter().find(|b| b.abbrev == book_abbr)?;
-        let chapter = book.chapters.iter().find(|c| c.number == chapter)?;
-        let verse = chapter.verses.iter().find(|v| v.number == verse)?;
-
-        Some(BibleVerseResponse {
-            book: book.name.clone(),
-            chapter: chapter.number,
-            verse: verse.number,
-            content: verse.content.clone(),
-        })
-    }
-}
-
-#[derive(Debug, Serialize)]
-struct BibleVerseResponse {
-    book: String,
-    chapter: usize,
-    verse: usize,
-    content: String,
-}
-
-#[derive(Debug, Default, Deserialize)]
-struct BibleBook {
-    #[serde(rename = "@name")]
-    name: String,
-    #[serde(rename = "@abbrev")]
-    abbrev: String,
-    #[serde(rename = "@chapters")]
-    chapters_len: usize,
-
-    #[serde(rename = "c")]
-    chapters: Vec<BibleBookChapter>,
-}
-
-#[derive(Debug, Default, Deserialize)]
-struct BibleBookChapter {
-    #[serde(rename = "@n")]
-    number: usize,
-
-    #[serde(rename = "v")]
-    verses: Vec<BibleBookVerse>,
-}
-
-#[derive(Debug, Default, Deserialize)]
-struct BibleBookVerse {
-    #[serde(rename = "@n")]
-    number: usize,
-    #[serde(rename = "$text")]
-    content: String,
-}
+use crate::bible::{Abbreviation, BibleSingleVerseResult};
 
 fn main() {
-    let bible = Bible::from_xml().unwrap();
-    let rand_verse = bible.random();
-    let verse = bible.get("Gênesis", 1, 1).unwrap();
-    let verse_abbr = bible.get_by_abbr("gn", 1, 1).unwrap();
-    println!("Random Verse: {:?}", rand_verse);
-    println!("Verse: {:?}", verse);
-    println!("Verse by Abbr: {:?}", verse_abbr);
+    let args = RustBibleArgs::parse();
+
+    let bible = Bible::from_xml_file(&args.file_path)
+        .map_err(|e| {
+            eprintln!("Error: {}", e);
+            std::process::exit(1);
+        })
+        .unwrap();
+
+    let result_random: Option<BibleSingleVerseResult> = match args.sub_command {
+        None => None,
+        Some(sub_commands) => {
+            match sub_commands {
+                SubCommands::Random(r_args) => {
+                    if r_args.new_testment_only && r_args.old_testment_only {
+                        eprintln!("Error: Cannot specify both --new-testment-only and --old-testment-only");
+                        std::process::exit(1);
+                    }
+
+                    if r_args.new_testment_only {
+                        Some(bible.random(RandomVerseOpts::NewTestamentOnly))
+                    } else if r_args.old_testment_only {
+                        Some(bible.random(RandomVerseOpts::OldTestamentOnly))
+                    } else {
+                        Some(bible.random(RandomVerseOpts::All))
+                    }
+                }
+            }
+        }
+    };
+
+    if result_random.is_some() {
+        println!(
+            "{:?}",
+            serde_json::to_string(&result_random.unwrap()).unwrap()
+        );
+        std::process::exit(0);
+    }
+
+    let result_abbrev: Option<BibleVerseResult> = match args.abbreviation {
+        None => None,
+        Some(abbrev) => {
+            let abbrev_obj: Abbreviation = abbrev.parse().expect("Invalid Abbreviation value");
+            bible.get_abbr(abbrev_obj)
+        }
+    };
+
+    if result_abbrev.is_some() {
+        println!(
+            "{:?}",
+            serde_json::to_string(&result_abbrev.unwrap()).unwrap()
+        );
+        std::process::exit(0);
+    }
+
+    let book_name = args.book.expect("Book name is required");
+    let chapter_number = args.chapter.expect("Chapter number is required");
+    let verse_opts: VerseOpts = args
+        .verses
+        .expect("Verses number is required")
+        .parse()
+        .unwrap();
+
+    let result = bible
+        .get(&book_name, chapter_number, verse_opts)
+        .expect("Verse not found");
+    println!("{:?}", serde_json::to_string(&result).unwrap());
+    std::process::exit(0);
 }
