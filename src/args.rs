@@ -42,4 +42,8 @@ pub struct RandomArgs {
     /// Get only verses from the Old Testament
     #[arg(long, short, action)]
     pub old_testment_only: bool,
+
+    /// Amount of verses to get
+    #[arg(long, short)]
+    pub verse_count: Option<usize>,
 }

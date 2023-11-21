@@ -1,11 +1,13 @@
 mod args;
 mod bible;
+mod utils;
 
 use args::{RustBibleArgs, SubCommands};
 use bible::{Bible, BibleVerseResult, RandomVerseOpts, VerseOpts};
 use clap::Parser;
+use utils::SubscriptRepresentation;
 
-use crate::bible::{Abbreviation, BibleSingleVerseResult};
+use crate::bible::Abbreviation;
 
 fn main() {
     let args = RustBibleArgs::parse();
@@ -17,7 +19,7 @@ fn main() {
         })
         .unwrap();
 
-    let result_random: Option<BibleSingleVerseResult> = match args.sub_command {
+    let result_random: Option<BibleVerseResult> = match args.sub_command {
         None => None,
         Some(sub_commands) => {
             match sub_commands {
@@ -27,26 +29,42 @@ fn main() {
                         std::process::exit(1);
                     }
 
+                    let verse_count = r_args.verse_count.unwrap_or(1);
+
                     if r_args.new_testment_only {
-                        Some(bible.random(RandomVerseOpts::NewTestamentOnly))
+                        Some(bible.random(RandomVerseOpts::NewTestamentOnly, verse_count))
                     } else if r_args.old_testment_only {
-                        Some(bible.random(RandomVerseOpts::OldTestamentOnly))
+                        Some(bible.random(RandomVerseOpts::OldTestamentOnly, verse_count))
                     } else {
-                        Some(bible.random(RandomVerseOpts::All))
+                        Some(bible.random(RandomVerseOpts::All, verse_count))
                     }
                 }
             }
         }
     };
 
-    if result_random.is_some() {
-        let res = result_random.unwrap();
-        let book = res.book;
-        let chapter = res.chapter;
-        let verse = res.verse;
-        let content = res.content;
+    if let Some(result) = result_random {
+        match result {
+            BibleVerseResult::Single(res) => {
+                let book = res.book;
+                let chapter = res.chapter;
+                let verse = res.verse;
+                let content = res.content;
 
-        println!("{book} {chapter}:{verse}\n{content}");
+                println!("{book} {chapter}:{verse}\n{content}");
+            }
+            BibleVerseResult::Range(res) => {
+                let book = res.book;
+                let chapter = res.chapter;
+                let verses = res.verses;
+                println!("{book} {chapter}");
+                for v in verses {
+                    let verse_number = v.number.to_subscript();
+                    let verse_content = v.content;
+                    println!("{verse_number} {verse_content}");
+                }
+            }
+        }
 
         std::process::exit(0);
     }

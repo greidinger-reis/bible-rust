@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 use quick_xml::de::{from_reader, DeError};
-use rand::seq::SliceRandom;
+use rand::{seq::SliceRandom, Rng};
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
 
@@ -8,37 +8,37 @@ use std::str::FromStr;
 #[serde(rename = "bible")]
 pub struct Bible {
     #[serde(rename = "book")]
-    books: Vec<BibleBook>,
+    pub books: Vec<BibleBook>,
 }
 
 #[derive(Debug, Default, Deserialize)]
 pub struct BibleBook {
     #[serde(rename = "@name")]
-    name: String,
+    pub name: String,
     #[serde(rename = "@abbrev")]
-    abbrev: String,
+    pub abbrev: String,
     #[serde(rename = "@chapters")]
-    chapters_len: usize,
+    pub chapters_len: usize,
 
     #[serde(rename = "c")]
-    chapters: Vec<BibleBookChapter>,
+    pub chapters: Vec<BibleBookChapter>,
 }
 
 #[derive(Debug, Default, Deserialize)]
 pub struct BibleBookChapter {
     #[serde(rename = "@n")]
-    number: usize,
+    pub number: usize,
 
     #[serde(rename = "v")]
-    verses: Vec<BibleBookVerse>,
+    pub verses: Vec<BibleBookVerse>,
 }
 
 #[derive(Debug, Default, Deserialize)]
 pub struct BibleBookVerse {
     #[serde(rename = "@n")]
-    number: usize,
+    pub number: usize,
     #[serde(rename = "$text")]
-    content: String,
+    pub content: String,
 }
 
 pub enum RandomVerseOpts {
@@ -59,9 +59,9 @@ pub enum BibleVerseResult {
 }
 
 pub struct Abbreviation {
-    book: String,
-    chapter: usize,
-    verse: VerseOpts,
+    pub book: String,
+    pub chapter: usize,
+    pub verse: VerseOpts,
 }
 
 #[derive(Debug, Serialize)]
@@ -144,7 +144,7 @@ impl Bible {
         Ok(bible)
     }
 
-    pub fn random(&self, opts: RandomVerseOpts) -> BibleSingleVerseResult {
+    pub fn random(&self, opts: RandomVerseOpts, count: usize) -> BibleVerseResult {
         let books = match opts {
             RandomVerseOpts::All => &self.books,
             RandomVerseOpts::OldTestamentOnly => &self.books[0..39],
@@ -153,17 +153,48 @@ impl Bible {
 
         let book = books.choose(&mut rand::thread_rng()).unwrap();
         let chapter = book.chapters.choose(&mut rand::thread_rng()).unwrap();
-        let verse = chapter.verses.choose(&mut rand::thread_rng()).unwrap();
 
-        BibleSingleVerseResult {
+        let mut rng = rand::thread_rng();
+
+        let start_index = rng.gen_range(0..chapter.verses.len());
+        let mut stop_index = start_index + count;
+
+        if stop_index > chapter.verses.len() {
+            stop_index = chapter.verses.len()
+        }
+
+        let verses = &chapter.verses[start_index..stop_index];
+
+        if verses.len() > 1 {
+            return BibleVerseResult::Range(BibleRangeVerseResult {
+                book: book.name.clone(),
+                chapter: chapter.number,
+                verses: verses
+                    .iter()
+                    .map(|v| {
+                        return VerseRange {
+                            number: v.number,
+                            content: v.content.clone(),
+                        };
+                    })
+                    .collect(),
+            });
+        }
+
+        BibleVerseResult::Single(BibleSingleVerseResult {
             book: book.name.clone(),
             chapter: chapter.number,
-            verse: verse.number,
-            content: verse.content.clone(),
-        }
+            verse: verses.first().unwrap().number,
+            content: verses.first().unwrap().content.clone(),
+        })
     }
 
-    pub fn get(&self, book_name: &str, chapter: usize, verse: VerseOpts) -> Option<BibleVerseResult> {
+    pub fn get(
+        &self,
+        book_name: &str,
+        chapter: usize,
+        verse: VerseOpts,
+    ) -> Option<BibleVerseResult> {
         let book = self.books.iter().find(|b| b.name == book_name)?;
         let chapter = book.chapters.iter().find(|c| c.number == chapter)?;
 
@@ -234,7 +265,7 @@ impl Bible {
         } else {
             let verse = verses.first().unwrap();
 
-            Some(BibleVerseResult::Single(BibleSingleVerseResult{
+            Some(BibleVerseResult::Single(BibleSingleVerseResult {
                 book: book.name.clone(),
                 chapter: chapter.number,
                 verse: verse.number,
