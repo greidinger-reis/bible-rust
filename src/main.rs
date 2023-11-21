@@ -83,15 +83,14 @@ fn main() {
                 let book = res.book;
                 let chapter = res.chapter;
                 let verses = res.verses;
-                let verse_start_n = verses.first().unwrap().number;
-                let verse_end_n = verses.last().unwrap().number;
 
-                println!("{book} {chapter}:{verse_start_n}-{verse_end_n}");
+                println!("{book} {chapter}");
 
                 for verse in verses {
                     let verse_content = verse.content;
+                    let verse_number = verse.number.to_subscript();
 
-                    println!("{verse_content}")
+                    println!("{verse_number} {verse_content}")
                 }
             }
             BibleVerseResult::Single(res) => {
